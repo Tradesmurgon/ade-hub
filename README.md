@@ -138,4 +138,3 @@ Vercel automatically redeploys within about 60 seconds.
 - **Login doesn't work**: Check Supabase → Authentication → Users to confirm the account was created
 - **Domain not resolving**: DNS can take up to 24h; check Namecheap Advanced DNS to confirm the CNAME is saved correctly
 - **API errors**: Check Vercel → Functions → View logs for `/api/staff`
-
