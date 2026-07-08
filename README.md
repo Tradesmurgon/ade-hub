@@ -139,3 +139,4 @@ Vercel automatically redeploys within about 60 seconds.
 - **Domain not resolving**: DNS can take up to 24h; check Namecheap Advanced DNS to confirm the CNAME is saved correctly
 - **API errors**: Check Vercel → Functions → View logs for `/api/staff`
 
+
