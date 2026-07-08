@@ -239,17 +239,6 @@ export default function WorkshopApp() {
   );
 }
 
-/* ── Mobile detection hook ── */
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-  return isMobile;
-}
-
 function Shell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: "#15171A", fontFamily: "Inter, system-ui, sans-serif", color: "#E8E6DF" }}>
@@ -268,11 +257,22 @@ function Shell({ children }) {
         input:focus, select:focus, textarea:focus { border-color: #FF8A1E; }
         label { font-size: 12px; color: #9A9D9F; display: block; margin-bottom: 5px; font-weight: 500; }
         ::placeholder { color: #5C6065; }
-        /* Mobile touch targets */
+
+        /* ── Responsive layout ── */
+        .ade-desktop-only { display: flex !important; }
+        .ade-mobile-only  { display: none  !important; }
+        .ade-sidebar      { display: block !important; }
+        .ade-mob-pad      { padding: 24px 28px; }
+
         @media (max-width: 767px) {
-          input, select, textarea { font-size: 16px !important; padding: 11px 13px !important; }
+          .ade-desktop-only { display: none  !important; }
+          .ade-mobile-only  { display: flex  !important; }
+          .ade-sidebar      { display: none  !important; }
+          .ade-mob-pad      { padding: 14px 12px 80px; }
+          input, select, textarea { font-size: 16px !important; padding: 11px 12px !important; }
           label { font-size: 13px !important; }
         }
+
         @media print {
           body * { visibility: hidden; }
           #print-area, #print-area * { visibility: visible; }
@@ -537,31 +537,30 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
   ];
   const navTabs = isOwner ? ownerTabs : staffTabOptions.filter((t) => can(t.permission));
 
-  const isMobile = useIsMobile();
-
   return (
-    <div style={{ minHeight: "100vh", paddingBottom: isMobile ? 70 : 0 }}>
+    <div style={{ minHeight: "100vh" }}>
 
       {/* ── Top bar ── */}
-      <div style={{ borderBottom: "1px solid #2C2F33", padding: isMobile ? "10px 14px" : "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#15171A", position: "sticky", top: 0, zIndex: 50 }}>
+      <div style={{ borderBottom: "1px solid #2C2F33", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#15171A", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 30, height: 30, borderRadius: 6, background: "#FF8A1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Wrench size={16} color="#1A1300" />
           </div>
-          {!isMobile && <div className="wj-h" style={{ fontSize: 18, fontWeight: 700 }}>ADE Hub</div>}
+          <div className="wj-h ade-desktop-only" style={{ fontSize: 17, fontWeight: 700, alignItems: "center" }}>ADE Hub</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600 }}>{session.name}</div>
-            {!isMobile && <div style={{ fontSize: 11, color: isOwner ? "#FF8A1E" : "#9A9D9F", fontWeight: 600, textTransform: "uppercase" }}>{isOwner ? "Owner" : "Staff"}</div>}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>{session.name}</div>
+            <div className="ade-desktop-only" style={{ fontSize: 10, color: isOwner ? "#FF8A1E" : "#9A9D9F", fontWeight: 600, textTransform: "uppercase" }}>{isOwner ? "Owner" : "Staff"}</div>
           </div>
-          {isOwner && !isMobile && (
-            <button className="wj-btn wj-ghost" style={{ padding: "8px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600 }} onClick={() => setShowMobileInfo(true)}>
-              <Smartphone size={14} /> Staff access
+          {isOwner && (
+            <button className="wj-btn wj-ghost ade-desktop-only" style={{ padding: "7px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, alignItems: "center", gap: 5 }} onClick={() => setShowMobileInfo(true)}>
+              <Smartphone size={13} /> Staff access
             </button>
           )}
-          <button className="wj-btn wj-ghost" style={{ padding: "8px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600 }} onClick={onLogout}>
-            <LogOut size={14} />{!isMobile && " Sign out"}
+          <button className="wj-btn wj-ghost" style={{ padding: "8px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 5, fontSize: 12 }} onClick={onLogout}>
+            <LogOut size={14} />
+            <span className="ade-desktop-only" style={{ alignItems: "center" }}>Sign out</span>
           </button>
         </div>
       </div>
@@ -569,24 +568,22 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
       {/* ── Main layout ── */}
       <div style={{ display: "flex" }}>
 
-        {/* Desktop sidebar */}
-        {!isMobile && (
-          <div style={{ width: 188, borderRight: "1px solid #2C2F33", padding: "16px 10px", flexShrink: 0, minHeight: "calc(100vh - 57px)", background: "#15171A", position: "sticky", top: 57, alignSelf: "flex-start", height: "calc(100vh - 57px)", overflowY: "auto" }}>
-            {navTabs.map((t) => <NavItem key={t.key} icon={t.icon} label={t.label} active={tab === t.key} onClick={() => setTab(t.key)} />)}
-          </div>
-        )}
+        {/* Desktop sidebar — hidden on mobile via CSS */}
+        <div className="ade-sidebar" style={{ width: 188, borderRight: "1px solid #2C2F33", padding: "16px 10px", flexShrink: 0, minHeight: "calc(100vh - 57px)", background: "#15171A" }}>
+          {navTabs.map((t) => <NavItem key={t.key} icon={t.icon} label={t.label} active={tab === t.key} onClick={() => setTab(t.key)} />)}
+        </div>
 
         {/* Content area */}
-        <div style={{ flex: 1, padding: isMobile ? "16px 14px" : "24px 28px", minWidth: 0, overflowX: "hidden" }}>
-          {isOwner && tab === "dashboard" && <Dashboard jobs={jobs} clients={clients} clientById={clientById} jobCost={jobCost} setTab={setTab} company={company} saveCompany={saveCompany} isMobile={isMobile} />}
+        <div className="ade-mob-pad" style={{ flex: 1, minWidth: 0, overflowX: "hidden" }}>
+          {isOwner && tab === "dashboard" && <Dashboard jobs={jobs} clients={clients} clientById={clientById} jobCost={jobCost} setTab={setTab} company={company} saveCompany={saveCompany} />}
           {tab === "jobs" && can("jobs") && (
             <Jobs
-              isOwner={isOwner} session={session} isMobile={isMobile}
+              isOwner={isOwner} session={session}
               jobs={jobs} clients={clients} parts={parts} clientById={clientById} partById={partById}
               persistJobs={persistJobs} jobCost={jobCost} setPrintJob={setPrintJob} staffUsers={staffUsers}
             />
           )}
-          {isOwner && tab === "clients" && <Clients clients={clients} jobs={jobs} persistClients={persistClients} isMobile={isMobile} />}
+          {isOwner && tab === "clients" && <Clients clients={clients} jobs={jobs} persistClients={persistClients} />}
           {tab === "parts" && can("parts") && <Parts isOwner={isOwner} parts={parts} persistParts={persistParts} />}
           {tab === "inventory" && can("inventory") && <Inventory isOwner={isOwner} parts={parts} persistParts={persistParts} jobs={jobs} />}
           {tab === "inv_checklist" && can("inventory_checklist") && <InventoryChecklist parts={parts} persistParts={persistParts} session={session} isOwner={isOwner} />}
@@ -603,29 +600,21 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
         </div>
       </div>
 
-      {/* ── Mobile bottom nav bar ── */}
-      {isMobile && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#1E2024", borderTop: "1px solid #2C2F33", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
-          {navTabs.slice(0, 5).map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                className="wj-btn"
-                onClick={() => setTab(t.key)}
-                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 4px 8px", background: "transparent", color: active ? "#FF8A1E" : "#5C6065", gap: 4 }}
-              >
-                <Icon size={20} />
-                <span style={{ fontSize: 9.5, fontWeight: active ? 700 : 500, lineHeight: 1 }}>{t.label.split(" ")[0]}</span>
-              </button>
-            );
-          })}
-          {navTabs.length > 5 && (
-            <MobileMoreMenu tabs={navTabs.slice(5)} activeTab={tab} setTab={setTab} />
-          )}
-        </div>
-      )}
+      {/* ── Mobile bottom nav — hidden on desktop via CSS ── */}
+      <div className="ade-mobile-only" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#1E2024", borderTop: "1px solid #2C2F33", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {navTabs.slice(0, 5).map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button key={t.key} className="wj-btn" onClick={() => setTab(t.key)}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 4px 8px", background: "transparent", color: active ? "#FF8A1E" : "#5C6065", gap: 3 }}>
+              <Icon size={22} />
+              <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, lineHeight: 1 }}>{t.label.split(" ")[0]}</span>
+            </button>
+          );
+        })}
+        {navTabs.length > 5 && <MobileMoreMenu tabs={navTabs.slice(5)} activeTab={tab} setTab={setTab} />}
+      </div>
 
       {printJob && <PrintCard job={printJob} client={clientById[printJob.clientId]} partById={partById} jobCost={jobCost} onClose={() => setPrintJob(null)} showCost={isOwner} />}
       {showMobileInfo && <MobileInfoModal onClose={() => setShowMobileInfo(false)} />}
@@ -704,7 +693,7 @@ function Empty({ text }) {
 /* ============================================================
    DASHBOARD (owner only)
    ============================================================ */
-function Dashboard({ jobs, clients, clientById, jobCost, setTab, company, saveCompany, isMobile }) {
+function Dashboard({ jobs, clients, clientById, jobCost, setTab, company, saveCompany }) {
   const [showCompanySettings, setShowCompanySettings] = useState(false);
   const active = jobs.filter((j) => j.status !== "Completed");
   const awaitingParts = jobs.filter((j) => j.status === "Awaiting Parts").length;
@@ -797,7 +786,7 @@ function Stat({ label, value, icon: Icon, accent = "#E8E6DF" }) {
 /* ============================================================
    JOBS (role-aware: staff cannot see cost figures or pricing fields)
    ============================================================ */
-function Jobs({ isOwner, session, isMobile, jobs, clients, parts, clientById, partById, persistJobs, jobCost, setPrintJob, staffUsers }) {
+function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, persistJobs, jobCost, setPrintJob, staffUsers }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("All");
@@ -852,17 +841,17 @@ function Jobs({ isOwner, session, isMobile, jobs, clients, parts, clientById, pa
           {filtered.map((j) => {
             const cost = jobCost(j);
             return (
-              <div key={j.id} className="wj-card" style={{ padding: isMobile ? 14 : 16 }}>
+              <div key={j.id} className="wj-card" style={{ padding: 14 }}>
                 {/* Top row: job number + priority + actions */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <span style={{ fontSize: 11.5, color: "#9A9D9F" }}>{j.jobNumber}</span>
                       {j.priority === "Urgent" && <span style={{ fontSize: 10, fontWeight: 700, color: "#A23B2E" }}>URGENT</span>}
-                      {!isMobile && <span style={{ fontSize: 11.5, color: "#9A9D9F" }}>{dateShort(j.createdAt)}</span>}
+                      <span className="ade-desktop-only" style={{ fontSize: 11.5, color: "#9A9D9F", alignItems: "center" }}>{dateShort(j.createdAt)}</span>
                     </div>
-                    <div style={{ fontWeight: 600, fontSize: isMobile ? 14 : 15 }}>{j.title}</div>
-                    <div style={{ fontSize: 12.5, color: "#9A9D9F", marginTop: 2 }}>{clientById[j.clientId]?.name || "No client"}{!isMobile && clientById[j.clientId]?.phone ? ` · ${clientById[j.clientId].phone}` : ""}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{j.title}</div>
+                    <div style={{ fontSize: 12.5, color: "#9A9D9F", marginTop: 2 }}>{clientById[j.clientId]?.name || "No client"}</div>
                   </div>
                   <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                     <IconBtn onClick={() => setPrintJob(j)} title="Print"><Printer size={14} /></IconBtn>
@@ -890,11 +879,11 @@ function Jobs({ isOwner, session, isMobile, jobs, clients, parts, clientById, pa
                 {/* Bottom row: status + cost */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <select value={j.status} onChange={(e) => setStatus(j.id, e.target.value)}
-                    style={{ fontSize: 12.5, fontWeight: 600, color: STATUS_COLOR[j.status], borderColor: STATUS_COLOR[j.status], flex: isMobile ? 1 : "0 0 auto", minWidth: 140 }}>
+                    style={{ fontSize: 12.5, fontWeight: 600, color: STATUS_COLOR[j.status], borderColor: STATUS_COLOR[j.status], flex: 1, minWidth: 140 }}>
                     {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                   {isOwner && <div style={{ fontSize: 13, color: "#C7C5BE", fontWeight: 600 }}>{money(cost.total)}</div>}
-                  {isMobile && <div style={{ fontSize: 11.5, color: "#9A9D9F", marginLeft: "auto" }}>{dateShort(j.createdAt)}</div>}
+                  <div className="ade-mobile-only" style={{ fontSize: 11.5, color: "#9A9D9F", marginLeft: "auto" }}>{dateShort(j.createdAt)}</div>
                 </div>
               </div>
             );
@@ -3466,10 +3455,10 @@ function StaffForm({ user, existingUsers, onSave, onClose }) {
    SHARED MODAL + MOBILE INFO
    ============================================================ */
 function Modal({ children, onClose, title, wide }) {
-  const isMobile = useIsMobile();
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 90, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }} onClick={onClose}>
-      <div className="wj-card" style={{ width: isMobile ? "100%" : (wide ? 560 : 440), maxHeight: isMobile ? "92vh" : "88vh", overflow: "auto", padding: isMobile ? "20px 16px 32px" : 22, borderRadius: isMobile ? "16px 16px 0 0" : 10 }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 90, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 0 }} onClick={onClose}>
+      <style>{`.modal-box { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; padding: 20px 16px 32px; } @media (min-width: 768px) { .modal-box { width: ${wide ? "560px" : "440px"}; border-radius: 10px; padding: 22px; margin-bottom: 40px; } }`}</style>
+      <div className="wj-card modal-box" style={{ overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div className="wj-h" style={{ fontSize: 17, fontWeight: 700 }}>{title}</div>
           <button className="wj-btn" style={{ background: "transparent", color: "#9A9D9F", padding: 4 }} onClick={onClose}><X size={20} /></button>
