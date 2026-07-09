@@ -42,26 +42,30 @@ export const dbToJob = (r) => ({
 })
 
 export const partToDb = (p) => ({
-  id:         p.id,
-  name:       p.name,
-  sku:        p.sku || '',
-  cost:       Number(p.cost) || 0,
-  qty:        Number(p.qty) || 0,
-  reorder_at: Number(p.reorderAt) || 0,
-  supplier:   p.supplier || '',
-  category:   p.category || 'Other',
+  id:            p.id,
+  name:          p.name,
+  sku:           p.sku || '',
+  cost:          Number(p.cost) || 0,
+  qty:           Number(p.qty) || 0,
+  reorder_at:    Number(p.reorderAt) || 0,
+  supplier:      p.supplier || '',
+  category:      p.category || 'Other',
+  units_per_box: Number(p.unitsPerBox) || 1,
+  unit_name:     p.unitName || '',
 })
 
 export const dbToPart = (r) => ({
-  id:        r.id,
-  name:      r.name,
-  sku:       r.sku,
-  cost:      r.cost,
-  qty:       r.qty,
-  reorderAt: r.reorder_at,
-  supplier:  r.supplier,
-  category:  r.category,
-  createdAt: r.created_at,
+  id:          r.id,
+  name:        r.name,
+  sku:         r.sku,
+  cost:        r.cost,
+  qty:         r.qty,
+  reorderAt:   r.reorder_at,
+  supplier:    r.supplier,
+  category:    r.category,
+  unitsPerBox: r.units_per_box || 1,
+  unitName:    r.unit_name || '',
+  createdAt:   r.created_at,
 })
 
 export const clientToDb = (c) => ({
