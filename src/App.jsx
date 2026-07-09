@@ -1667,22 +1667,14 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
   const [note, setNote] = useState("");
   const [partsUsed, setPartsUsed] = useState([]);
   const [timeError, setTimeError] = useState("");
-
-  const addPartRow = () => {
-    if (parts.length === 0) return;
-    setPartsUsed([...partsUsed, { partId: parts[0].id, qty: 1 }]);
-  };
-  const updatePartRow = (idx, field, value) => {
-    const next = [...partsUsed];
-    next[idx] = { ...next[idx], [field]: field === "qty" ? Math.max(1, Number(value)) : value };
-    setPartsUsed(next);
-  };
-  const removePartRow = (idx) => setPartsUsed(partsUsed.filter((_, i) => i !== idx));
+  // Local entries — keeps submissions visible immediately, independent of Supabase round-trip
+  const [localEntries, setLocalEntries] = useState([]);
 
   const submit = () => {
     if (!selectedJobId) { setTimeError("Select a job first."); return; }
     if (!hours || Number(hours) <= 0) { setTimeError("Enter the hours worked."); return; }
 
+    const job = jobs.find((j) => j.id === selectedJobId);
     const entry = {
       id: uid("time"),
       staffName: session.name,
@@ -1690,7 +1682,12 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
       hours: Number(hours),
       note,
       partsUsed,
+      jobTitle: job?.title || "",
+      jobNumber: job?.jobNumber || "",
     };
+
+    // Add to local display state immediately — survives polling race conditions
+    setLocalEntries((prev) => [entry, ...prev].slice(0, 7));
 
     persistJobs(jobs.map((j) => {
       if (j.id !== selectedJobId) return j;
@@ -1714,15 +1711,29 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
     setHours(""); setNote(""); setPartsUsed([]); setTimeError("");
   };
 
-  const myRecentEntries = jobs
-    .flatMap((j) => (j.timeEntries || [])
-      .filter((e) => e.staffName === session.name)
-      .map((e) => ({ ...e, jobTitle: j.title, jobNumber: j.jobNumber }))
-    )
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 7);
+  // Merge local entries with entries from Supabase, deduplicate by id, keep 7 most recent
+  const myRecentEntries = useMemo(() => {
+    const fromJobs = jobs.flatMap((j) =>
+      (j.timeEntries || [])
+        .filter((e) => e.staffName === session.name)
+        .map((e) => ({ ...e, jobTitle: j.title, jobNumber: j.jobNumber }))
+    );
+    const seen = new Set();
+    return [...localEntries, ...fromJobs]
+      .filter((e) => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 7);
+  }, [jobs, localEntries, session.name]);
 
   const partById = Object.fromEntries(parts.map((p) => [p.id, p]));
+
+  // Strip "(Box X)" etc from part display name for staff
+  const partDisplayName = (p) => {
+    if (!p) return "Unknown";
+    const unitName = p.unitName || "";
+    if (unitName) return p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim();
+    return p.name;
+  };
 
   return (
     <div>
@@ -1772,9 +1783,11 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
               <div style={{ fontSize: 11, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>Added</div>
               {partsUsed.map((pu, idx) => {
                 const part = parts.find((p) => p.id === pu.partId);
+                const unitLabel = part?.unitName || "unit";
                 return (
                   <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, background: "#15171A", borderRadius: 6, padding: "7px 10px" }}>
-                    <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{part?.name || "Unknown"}</div>
+                    <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{partDisplayName(part)}</div>
+                    <div style={{ fontSize: 11.5, color: "#9A9D9F", marginRight: 4 }}>{unitLabel}s</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <button className="wj-btn wj-ghost" style={{ width: 24, height: 24, borderRadius: 4, fontSize: 14 }} onClick={() => {
                         const next = [...partsUsed];
@@ -1823,11 +1836,14 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
               </div>
               {e.partsUsed?.length > 0 && (
                 <div style={{ borderTop: "1px solid #2C2F33", paddingTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {e.partsUsed.map((pu, i) => (
-                    <span key={i} style={{ fontSize: 11.5, background: "#15171A", border: "1px solid #2C2F33", borderRadius: 5, padding: "3px 8px", color: "#C7C5BE" }}>
-                      {partById[pu.partId]?.name || "Unknown"} × {pu.qty}
-                    </span>
-                  ))}
+                  {e.partsUsed.map((pu, i) => {
+                    const part = partById[pu.partId];
+                    return (
+                      <span key={i} style={{ fontSize: 11.5, background: "#15171A", border: "1px solid #2C2F33", borderRadius: 5, padding: "3px 8px", color: "#C7C5BE" }}>
+                        {partDisplayName(part)} × {pu.qty} {part?.unitName || ""}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
