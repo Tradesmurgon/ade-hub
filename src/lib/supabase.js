@@ -100,7 +100,7 @@ export async function fetchAll() {
 }
 
 export async function fetchProfiles() {
-  const { data } = await supabase.from('profiles').select('id, name, email, role, permissions, created_at')
+  const { data } = await supabase.from('profiles').select('id, name, email, role, permissions, rate, created_at')
   return data || []
 }
 
