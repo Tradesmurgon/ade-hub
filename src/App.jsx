@@ -2119,26 +2119,28 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
       <div className="wj-card" style={{ padding: 18, marginBottom: 22 }}>
 
         <div style={{ marginBottom: 14 }}>
-          {/* Priority badge sits above the job selector when relevant */}
-          {(() => {
-            const job = openJobs.find((j) => j.id === selectedJobId);
-            if (!job || job.priority === "Standard") return null;
-            const isUrgent = job.priority === "Urgent";
-            return (
-              <div style={{ marginBottom: 6 }}>
-                <span style={{
-                  fontSize: 11.5, fontWeight: 800, padding: "4px 12px", borderRadius: 20,
-                  background: isUrgent ? "rgba(162,59,46,0.15)" : "rgba(92,107,122,0.15)",
-                  color: isUrgent ? "#D9695A" : "#9A9D9F",
-                  border: `1px solid ${isUrgent ? "#A23B2E" : "#3A3D42"}`,
-                  textTransform: "uppercase", letterSpacing: "0.06em",
-                }}>
-                  {isUrgent ? "⚡ Urgent" : "⏸ Hold"}
-                </span>
-              </div>
-            );
-          })()}
-          <label>Job</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+            <label style={{ margin: 0 }}>Job</label>
+            {(() => {
+              const job = openJobs.find((j) => j.id === selectedJobId);
+              if (!job || job.priority === "Standard") return null;
+              const isUrgent = job.priority === "Urgent";
+              return (
+                <>
+                  <span style={{ color: "#5C6065", fontSize: 12 }}>—</span>
+                  <span style={{
+                    fontSize: 11.5, fontWeight: 800, padding: "2px 10px", borderRadius: 20,
+                    background: isUrgent ? "rgba(162,59,46,0.15)" : "rgba(92,107,122,0.15)",
+                    color: isUrgent ? "#D9695A" : "#9A9D9F",
+                    border: `1px solid ${isUrgent ? "#A23B2E" : "#3A3D42"}`,
+                    textTransform: "uppercase", letterSpacing: "0.06em",
+                  }}>
+                    {isUrgent ? "⚡ Urgent" : "⏸ Hold"}
+                  </span>
+                </>
+              );
+            })()}
+          </div>
           <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)}>
             {openJobs.length === 0 && <option value="">No open jobs</option>}
             {openJobs.map((j) => <option key={j.id} value={j.id}>{j.jobNumber} — {j.title}</option>)}
