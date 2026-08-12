@@ -1062,81 +1062,32 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
 
         <div style={{ borderTop: "1px solid #2C2F33", marginBottom: 18 }} />
 
-        {/* Time entries + Materials side by side (or stacked if only one) */}
-        <div style={{ display: "grid", gridTemplateColumns: (timeEntries.length > 0 && partsUsed.length > 0) ? "1fr 1fr" : "1fr", gap: 20 }}>
 
-          {/* Time entries */}
-          {timeEntries.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                Time logged — {totalHours} hrs total
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {timeEntries.map((e) => (
-                  <div key={e.id} style={{ background: "#15171A", borderRadius: 8, padding: "11px 13px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{e.staffName}</div>
-                        <div style={{ fontSize: 11.5, color: "#9A9D9F" }}>{dateShort(e.date)}</div>
-                      </div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#FF8A1E" }}>{e.hours} hrs</div>
+        {/* Materials used */}
+        {partsUsed.length > 0 && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+              Materials used
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {partsUsed.map((pu, i) => {
+                const p = partById[pu.partId];
+                const displayName = p ? p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim() : "Unknown part";
+                const unitCost = p && Number(p.unitsPerBox) > 1 ? Number(p.cost) / Number(p.unitsPerBox) : p ? Number(p.cost) : 0;
+                const lineCost = unitCost * pu.qty;
+                return (
+                  <div key={i} style={{ background: "#15171A", borderRadius: 8, padding: "11px 13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{displayName}</div>
+                      <div style={{ fontSize: 12, color: "#9A9D9F" }}>× {pu.qty} {p?.unitName || "units"}</div>
                     </div>
-                    {e.note && (
-                      <div style={{ fontSize: 13, color: "#C7C5BE", marginTop: 8, paddingTop: 8, borderTop: "1px solid #2C2F33", lineHeight: 1.5 }}>
-                        {e.note}
-                      </div>
-                    )}
-                    {(e.partsUsed || []).length > 0 && (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
-                        {e.partsUsed.map((pu, i) => {
-                          const p = partById[pu.partId];
-                          const name = p ? p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim() : "Unknown";
-                          return (
-                            <span key={i} style={{ fontSize: 11, background: "#2C2F33", borderRadius: 5, padding: "2px 8px", color: "#9A9D9F" }}>
-                              {name} × {pu.qty}{p?.unitName ? ` ${p.unitName}` : ""}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {isOwner && <div style={{ fontSize: 13.5, fontWeight: 600, color: "#C7C5BE" }}>{money(lineCost)}</div>}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
-
-          {/* Materials used */}
-          {partsUsed.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                Materials used
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {partsUsed.map((pu, i) => {
-                  const p = partById[pu.partId];
-                  const displayName = p ? p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim() : "Unknown part";
-                  const unitCost = p && Number(p.unitsPerBox) > 1 ? Number(p.cost) / Number(p.unitsPerBox) : p ? Number(p.cost) : 0;
-                  const lineCost = unitCost * pu.qty;
-                  return (
-                    <div key={i} style={{ background: "#15171A", borderRadius: 8, padding: "11px 13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{displayName}</div>
-                        <div style={{ fontSize: 12, color: "#9A9D9F" }}>× {pu.qty} {p?.unitName || "units"}</div>
-                      </div>
-                      {isOwner && <div style={{ fontSize: 13.5, fontWeight: 600, color: "#C7C5BE" }}>{money(lineCost)}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {timeEntries.length === 0 && partsUsed.length === 0 && (
-            <div style={{ color: "#5C6065", fontSize: 13.5, padding: "10px 0", fontStyle: "italic" }}>
-              No time or materials logged on this job yet.
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
     </div>
