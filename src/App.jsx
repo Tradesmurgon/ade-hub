@@ -105,6 +105,7 @@ const dateShort = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { 
 
 const PERMISSIONS = [
   { key: "jobs",                label: "Job Cards",               desc: "View and update job cards" },
+  { key: "status_update",       label: "Status Update",           desc: "Set status to In Progress, Awaiting Parts, or Ready for Pickup" },
   { key: "time",                label: "Time Log",                desc: "Log hours against jobs" },
   { key: "parts",               label: "Parts & Consumables",     desc: "View stock and adjust quantities" },
   { key: "inventory",           label: "Inventory",               desc: "View and manage full inventory catalog" },
@@ -598,7 +599,7 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
           {isOwner && tab === "dashboard" && <Dashboard jobs={jobs} clients={clients} clientById={clientById} jobCost={jobCost} setTab={setTab} company={company} saveCompany={saveCompany} goToJob={goToJob} />}
           {tab === "jobs" && can("jobs") && (
             <Jobs
-              isOwner={isOwner} session={session}
+              isOwner={isOwner} can={can} session={session}
               jobs={jobs} clients={clients} parts={parts} clientById={clientById} partById={partById}
               persistJobs={persistJobs} jobCost={jobCost} setPrintJob={setPrintJob} staffUsers={staffUsers}
               openJobId={openJobId} clearOpenJobId={() => setOpenJobId(null)}
@@ -852,7 +853,7 @@ function Stat({ label, value, icon: Icon, accent = "#E8E6DF" }) {
 /* ============================================================
    JOBS (role-aware: staff cannot see cost figures or pricing fields)
    ============================================================ */
-function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, persistJobs, jobCost, setPrintJob, staffUsers, openJobId, clearOpenJobId, onRequestComplete }) {
+function Jobs({ isOwner, can, session, jobs, clients, parts, clientById, partById, persistJobs, jobCost, setPrintJob, staffUsers, openJobId, clearOpenJobId, onRequestComplete }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("All");
@@ -960,18 +961,24 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
                 )}
                 {/* Bottom row: status + cost */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <select value={j.status} onChange={(e) => setStatus(j.id, e.target.value)}
-                    style={{ fontSize: 12.5, fontWeight: 600, color: STATUS_COLOR[j.status], borderColor: STATUS_COLOR[j.status], flex: 1, minWidth: 140 }}>
-                    {(() => {
-                      const staffStatuses = ["In Progress", "Awaiting Parts", "Ready for Pickup"];
-                      const allowed = isOwner ? STATUSES : staffStatuses;
-                      const showCurrent = !isOwner && !staffStatuses.includes(j.status);
-                      return <>
-                        {showCurrent && <option value={j.status} disabled>{j.status}</option>}
-                        {allowed.map((s) => <option key={s} value={s}>{s}{s === "Completed" ? " → Archive" : ""}</option>)}
-                      </>;
-                    })()}
-                  </select>
+                  {(isOwner || can("status_update")) ? (
+                    <select value={j.status} onChange={(e) => setStatus(j.id, e.target.value)}
+                      style={{ fontSize: 12.5, fontWeight: 600, color: STATUS_COLOR[j.status], borderColor: STATUS_COLOR[j.status], flex: 1, minWidth: 140 }}>
+                      {(() => {
+                        const staffStatuses = ["In Progress", "Awaiting Parts", "Ready for Pickup"];
+                        const allowed = isOwner ? STATUSES : staffStatuses;
+                        const showCurrent = !isOwner && !staffStatuses.includes(j.status);
+                        return <>
+                          {showCurrent && <option value={j.status} disabled>{j.status}</option>}
+                          {allowed.map((s) => <option key={s} value={s}>{s}{s === "Completed" ? " → Archive" : ""}</option>)}
+                        </>;
+                      })()}
+                    </select>
+                  ) : (
+                    <span style={{ fontSize: 12.5, fontWeight: 700, padding: "5px 12px", borderRadius: 6, border: `1px solid ${STATUS_COLOR[j.status] || "#3A3D42"}`, color: STATUS_COLOR[j.status] || "#9A9D9F" }}>
+                      {j.status}
+                    </span>
+                  )}
                   {isOwner && <div style={{ fontSize: 13, color: "#C7C5BE", fontWeight: 600 }}>{money(cost.total)}</div>}
                   <div className="ade-mobile-only" style={{ fontSize: 11.5, color: "#9A9D9F", marginLeft: "auto" }}>{dateShort(j.createdAt)}</div>
                 </div>
