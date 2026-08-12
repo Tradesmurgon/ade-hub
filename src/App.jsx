@@ -3559,16 +3559,25 @@ function HeatGrid({ label, days, staffNames, getHours, heatColor, fmtDay, isToda
 /* ============================================================
    STAFF ACCESS (owner only) — create/manage staff logins
    ============================================================ */
-function StaffCard({ u, session, onEdit, onRemove, onRateChange }) {
+function StaffCard({ u, session, onEdit, onRemove, onRateUpdate }) {
   const [rateVal, setRateVal] = useState(String(Number(u.rate) || ""));
   const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
 
   const saveRate = async () => {
     const n = Number(rateVal);
     if (isNaN(n) || n < 0) return;
-    setSaving(true);
-    await onRateChange(n);
+    if (n === Number(u.rate)) return; // no change
+    setSaving(true); setSaveMsg("");
+    const { error } = await supabase.from("profiles").update({ rate: n }).eq("id", u.id);
     setSaving(false);
+    if (error) {
+      setSaveMsg("✗ " + error.message);
+    } else {
+      setSaveMsg("✓ Saved");
+      onRateUpdate(u.id, n);
+      setTimeout(() => setSaveMsg(""), 2000);
+    }
   };
 
   return (
@@ -3602,7 +3611,8 @@ function StaffCard({ u, session, onEdit, onRemove, onRateChange }) {
               />
             </div>
             <span style={{ fontSize: 11.5, color: "#5C6065", whiteSpace: "nowrap" }}>/hr</span>
-            {saving && <span style={{ fontSize: 11, color: "#FF8A1E" }}>✓</span>}
+            {saving && <span style={{ fontSize: 11, color: "#9A9D9F" }}>…</span>}
+            {saveMsg && <span style={{ fontSize: 11, color: saveMsg.startsWith("✓") ? "#4CAF50" : "#D9695A", whiteSpace: "nowrap" }}>{saveMsg}</span>}
           </div>
         </div>
 
@@ -3700,11 +3710,11 @@ function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
       {staffError && <div style={{ color: "#D9695A", fontSize: 12.5, marginBottom: 14 }}>{staffError}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {staffUsers.map((u) => (
-          <StaffCard key={u.id} u={u} session={session} onEdit={() => { setEditing(u); setShowForm(true); }} onRemove={() => remove(u.id)} onRateChange={async (newRate) => {
-            const result = await apiCall("PUT", { id: u.id, name: u.name, role: u.role, permissions: u.permissions, rate: newRate });
-            if (!result.error) persistStaff(staffUsers.map((s) => s.id === u.id ? { ...s, rate: newRate } : s));
-            else setStaffError(result.error);
-          }} />
+          <StaffCard key={u.id} u={u} session={session}
+            onEdit={() => { setEditing(u); setShowForm(true); }}
+            onRemove={() => remove(u.id)}
+            onRateUpdate={(id, newRate) => persistStaff(staffUsers.map((s) => s.id === id ? { ...s, rate: newRate } : s))}
+          />
         ))}
       </div>
       {showForm && <StaffForm user={editing} existingUsers={staffUsers} onSave={save} onClose={() => { setShowForm(false); setEditing(null); }} />}
