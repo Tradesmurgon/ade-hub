@@ -1016,6 +1016,29 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
           <div style={{ marginBottom: 16, fontSize: 12.5, color: "#5C6065", fontStyle: "italic" }}>No job description entered.</div>
         )}
 
+        {/* Staff notes — all notes from time entries collectively */}
+        {timeEntries.filter((e) => e.note && e.note.trim()).length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+              Staff notes
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {timeEntries
+                .filter((e) => e.note && e.note.trim())
+                .map((e) => (
+                  <div key={e.id} style={{ background: "#15171A", borderRadius: 8, padding: "12px 15px", borderLeft: "3px solid #3A3D42" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#FF8A1E" }}>{e.staffName}</span>
+                      <span style={{ fontSize: 11.5, color: "#5C6065" }}>{dateShort(e.date)} · {e.hours} hrs</span>
+                    </div>
+                    <div style={{ fontSize: 13.5, color: "#E8E6DF", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{e.note}</div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
         {/* Labour rate info */}
         {isOwner && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
