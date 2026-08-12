@@ -953,66 +953,94 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
   const cost = jobCost(job);
   const timeEntries = [...(job.timeEntries || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
   const partsUsed = job.partsUsed || [];
-
   const totalHours = timeEntries.reduce((s, e) => s + Number(e.hours || 0), 0);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 90, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
-      <div className="wj-card" style={{ width: "100%", maxWidth: 680, maxHeight: "92vh", overflow: "auto", borderRadius: "16px 16px 0 0", padding: "22px 20px 32px" }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overflowY: "auto" }} onClick={onClose}>
+      <div className="wj-card" style={{ width: "100%", maxWidth: 720, maxHeight: "88vh", overflow: "auto", borderRadius: 12, padding: "22px 22px 28px" }} onClick={(e) => e.stopPropagation()}>
 
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+        {/* Header row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "#9A9D9F" }}>{job.jobNumber}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: STATUS_COLOR[job.status], color: "#fff" }}>{job.status}</span>
-              {job.priority === "Urgent" && <span style={{ fontSize: 11, fontWeight: 700, color: "#A23B2E" }}>URGENT</span>}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#9A9D9F", fontWeight: 600 }}>{job.jobNumber}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: STATUS_COLOR[job.status], color: "#fff" }}>{job.status}</span>
+              {job.priority === "Urgent" && <span style={{ fontSize: 11, fontWeight: 700, color: "#A23B2E", padding: "2px 8px", background: "rgba(162,59,46,0.15)", borderRadius: 20, border: "1px solid #A23B2E" }}>URGENT</span>}
+              <span style={{ fontSize: 11, color: "#5C6065" }}>{dateShort(job.createdAt)}</span>
             </div>
-            <div className="wj-h" style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.2 }}>{job.title}</div>
-            {client && <div style={{ fontSize: 13, color: "#9A9D9F", marginTop: 4 }}>{client.name}{client.phone ? ` · ${client.phone}` : ""}</div>}
+            <div className="wj-h" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.2, marginBottom: 4 }}>{job.title}</div>
+            {client && (
+              <div style={{ fontSize: 13.5, color: "#9A9D9F" }}>
+                {client.name}
+                {client.phone && <span> · {client.phone}</span>}
+                {client.email && <span> · {client.email}</span>}
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 12 }}>
-            {isOwner && <button className="wj-btn wj-ghost" style={{ padding: "8px 12px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }} onClick={onEdit}><ChevronRight size={14} /> Edit</button>}
-            {isOwner && <button className="wj-btn wj-ghost" style={{ padding: "8px 10px", borderRadius: 6 }} onClick={onPrint}><Printer size={14} /></button>}
-            <button className="wj-btn" style={{ background: "transparent", color: "#9A9D9F", padding: "8px 10px", borderRadius: 6 }} onClick={onClose}><X size={18} /></button>
+            {isOwner && (
+              <button className="wj-btn wj-ghost" style={{ padding: "8px 13px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }} onClick={onEdit}>
+                ✏ Edit
+              </button>
+            )}
+            {isOwner && (
+              <button className="wj-btn wj-ghost" style={{ padding: "8px 10px", borderRadius: 6, display: "flex", alignItems: "center" }} onClick={onPrint} title="Print job card">
+                <Printer size={15} />
+              </button>
+            )}
+            <button className="wj-btn" style={{ background: "transparent", color: "#9A9D9F", padding: "8px 10px", borderRadius: 6, display: "flex", alignItems: "center" }} onClick={onClose}>
+              <X size={18} />
+            </button>
           </div>
         </div>
 
         {/* Assigned staff */}
         {(Array.isArray(job.assignedTo) ? job.assignedTo : job.assignedTo ? [job.assignedTo] : []).length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 16 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 14 }}>
+            <span style={{ fontSize: 11.5, color: "#9A9D9F", marginRight: 2 }}>Assigned:</span>
             {(Array.isArray(job.assignedTo) ? job.assignedTo : [job.assignedTo]).map((name) => (
               <span key={name} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#2C2F33", color: "#C7C5BE", border: "1px solid #3A3D42" }}>{name}</span>
             ))}
           </div>
         )}
 
-        {/* Description */}
-        {job.description && (
-          <div style={{ background: "#15171A", borderRadius: 8, padding: "12px 14px", marginBottom: 18, fontSize: 13.5, lineHeight: 1.6, color: "#C7C5BE", whiteSpace: "pre-wrap" }}>
-            {job.description}
+        {/* Job description / details */}
+        {job.description ? (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Job details</div>
+            <div style={{ background: "#15171A", borderRadius: 8, padding: "13px 15px", fontSize: 13.5, lineHeight: 1.7, color: "#E8E6DF", whiteSpace: "pre-wrap", borderLeft: "3px solid #FF8A1E" }}>
+              {job.description}
+            </div>
           </div>
+        ) : (
+          <div style={{ marginBottom: 16, fontSize: 12.5, color: "#5C6065", fontStyle: "italic" }}>No job description entered.</div>
         )}
 
-        {/* Cost summary (owner only) */}
+        {/* Labour rate info */}
         {isOwner && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
-            {[
-              { label: "Labour", value: money(cost.laborCost), sub: `${totalHours} hrs @ $${job.laborRate || 95}/hr` },
-              { label: "Materials", value: money(cost.partsCost), sub: `${partsUsed.length} item${partsUsed.length !== 1 ? "s" : ""}` },
-              { label: "Total", value: money(cost.total), sub: "inc. labour + materials", accent: true },
-            ].map((s) => (
-              <div key={s.label} className="wj-card" style={{ padding: "10px 12px", borderColor: s.accent ? "#FF8A1E" : "#2C2F33" }}>
-                <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>{s.label}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: s.accent ? "#FF8A1E" : "#E8E6DF" }}>{s.value}</div>
-                <div style={{ fontSize: 10.5, color: "#5C6065", marginTop: 2 }}>{s.sub}</div>
-              </div>
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+            <div className="wj-card" style={{ padding: "11px 13px" }}>
+              <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>Labour</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>{money(cost.laborCost)}</div>
+              <div style={{ fontSize: 11, color: "#5C6065", marginTop: 2 }}>{totalHours} hrs @ ${job.laborRate || 95}/hr</div>
+            </div>
+            <div className="wj-card" style={{ padding: "11px 13px" }}>
+              <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>Materials</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>{money(cost.partsCost)}</div>
+              <div style={{ fontSize: 11, color: "#5C6065", marginTop: 2 }}>{partsUsed.length} line item{partsUsed.length !== 1 ? "s" : ""}</div>
+            </div>
+            <div className="wj-card" style={{ padding: "11px 13px", borderColor: "#FF8A1E" }}>
+              <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>Total</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#FF8A1E" }}>{money(cost.total)}</div>
+              <div style={{ fontSize: 11, color: "#5C6065", marginTop: 2 }}>labour + materials</div>
+            </div>
           </div>
         )}
 
-        {/* Time entries + Parts — combined */}
-        <div style={{ display: "grid", gridTemplateColumns: timeEntries.length && partsUsed.length ? "1fr 1fr" : "1fr", gap: 16 }}>
+        <div style={{ borderTop: "1px solid #2C2F33", marginBottom: 18 }} />
+
+        {/* Time entries + Materials side by side (or stacked if only one) */}
+        <div style={{ display: "grid", gridTemplateColumns: (timeEntries.length > 0 && partsUsed.length > 0) ? "1fr 1fr" : "1fr", gap: 20 }}>
 
           {/* Time entries */}
           {timeEntries.length > 0 && (
@@ -1022,23 +1050,27 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {timeEntries.map((e) => (
-                  <div key={e.id} style={{ background: "#15171A", borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: e.note ? 5 : 0 }}>
+                  <div key={e.id} style={{ background: "#15171A", borderRadius: 8, padding: "11px 13px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.staffName}</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{e.staffName}</div>
                         <div style={{ fontSize: 11.5, color: "#9A9D9F" }}>{dateShort(e.date)}</div>
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#FF8A1E" }}>{e.hours} hrs</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#FF8A1E" }}>{e.hours} hrs</div>
                     </div>
-                    {e.note && <div style={{ fontSize: 12.5, color: "#C7C5BE", marginTop: 5, paddingTop: 5, borderTop: "1px solid #2C2F33" }}>{e.note}</div>}
+                    {e.note && (
+                      <div style={{ fontSize: 13, color: "#C7C5BE", marginTop: 8, paddingTop: 8, borderTop: "1px solid #2C2F33", lineHeight: 1.5 }}>
+                        {e.note}
+                      </div>
+                    )}
                     {(e.partsUsed || []).length > 0 && (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
                         {e.partsUsed.map((pu, i) => {
                           const p = partById[pu.partId];
                           const name = p ? p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim() : "Unknown";
                           return (
-                            <span key={i} style={{ fontSize: 11, background: "#1E2024", border: "1px solid #2C2F33", borderRadius: 5, padding: "2px 7px", color: "#9A9D9F" }}>
-                              {name} × {pu.qty} {p?.unitName || ""}
+                            <span key={i} style={{ fontSize: 11, background: "#2C2F33", borderRadius: 5, padding: "2px 8px", color: "#9A9D9F" }}>
+                              {name} × {pu.qty}{p?.unitName ? ` ${p.unitName}` : ""}
                             </span>
                           );
                         })}
@@ -1050,7 +1082,7 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
             </div>
           )}
 
-          {/* Parts used */}
+          {/* Materials used */}
           {partsUsed.length > 0 && (
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
@@ -1063,12 +1095,12 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
                   const unitCost = p && Number(p.unitsPerBox) > 1 ? Number(p.cost) / Number(p.unitsPerBox) : p ? Number(p.cost) : 0;
                   const lineCost = unitCost * pu.qty;
                   return (
-                    <div key={i} style={{ background: "#15171A", borderRadius: 8, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div key={i} style={{ background: "#15171A", borderRadius: 8, padding: "11px 13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{displayName}</div>
-                        <div style={{ fontSize: 11.5, color: "#9A9D9F" }}>× {pu.qty} {p?.unitName || "units"}</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{displayName}</div>
+                        <div style={{ fontSize: 12, color: "#9A9D9F" }}>× {pu.qty} {p?.unitName || "units"}</div>
                       </div>
-                      {isOwner && <div style={{ fontSize: 13, fontWeight: 600, color: "#C7C5BE" }}>{money(lineCost)}</div>}
+                      {isOwner && <div style={{ fontSize: 13.5, fontWeight: 600, color: "#C7C5BE" }}>{money(lineCost)}</div>}
                     </div>
                   );
                 })}
@@ -1077,7 +1109,9 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
           )}
 
           {timeEntries.length === 0 && partsUsed.length === 0 && (
-            <div style={{ color: "#5C6065", fontSize: 13, padding: "16px 0" }}>No time or materials logged yet.</div>
+            <div style={{ color: "#5C6065", fontSize: 13.5, padding: "10px 0", fontStyle: "italic" }}>
+              No time or materials logged on this job yet.
+            </div>
           )}
         </div>
 
