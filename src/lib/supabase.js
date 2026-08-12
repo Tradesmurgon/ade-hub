@@ -140,6 +140,12 @@ export function diffAndSyncClients(prev, next) {
 }
 
 export async function applySync(table, { deleted, upserted }) {
-  if (deleted.length) await supabase.from(table).delete().in('id', deleted)
-  if (upserted.length) await supabase.from(table).upsert(upserted)
+  if (deleted.length) {
+    const { error } = await supabase.from(table).delete().in('id', deleted)
+    if (error) throw new Error(`Delete failed: ${error.message}`)
+  }
+  if (upserted.length) {
+    const { error } = await supabase.from(table).upsert(upserted)
+    if (error) throw new Error(`Save failed: ${error.message}`)
+  }
 }
