@@ -2020,13 +2020,24 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
   const [selectedJobId, setSelectedJobId] = useState(openJobs[0]?.id || "");
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
+  const [jobStatus, setJobStatus] = useState("");
   const [partsUsed, setPartsUsed] = useState([]);
   const [timeError, setTimeError] = useState("");
-  // Local entries — keeps submissions visible immediately, independent of Supabase round-trip
   const [localEntries, setLocalEntries] = useState([]);
-
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  const STAFF_STATUSES = ["In Progress", "Awaiting Parts", "Ready for Pickup"];
+
+  // When job selection changes, pre-fill the current status
+  useEffect(() => {
+    const job = jobs.find((j) => j.id === selectedJobId);
+    if (job && STAFF_STATUSES.includes(job.status)) {
+      setJobStatus(job.status);
+    } else {
+      setJobStatus("");
+    }
+  }, [selectedJobId]);
 
   const submit = async () => {
     if (!selectedJobId) { setTimeError("Select a job first."); return; }
@@ -2060,6 +2071,7 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
       });
       return {
         ...j,
+        status: jobStatus || j.status,
         timeEntries: [...(j.timeEntries || []), entry],
         laborHours: (Number(j.laborHours) || 0) + Number(hours),
         partsUsed: existingParts,
@@ -2114,9 +2126,39 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
           </select>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, marginBottom: 14 }}>
           <div><label>Hours worked</label><input type="number" step="0.25" min="0" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="e.g. 1.5" /></div>
           <div><label>Note (optional)</label><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What you did" /></div>
+        </div>
+
+        {/* Job status update */}
+        <div style={{ marginBottom: 18 }}>
+          <label>Update job status (optional)</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+            {STAFF_STATUSES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="wj-btn"
+                onClick={() => setJobStatus(jobStatus === s ? "" : s)}
+                style={{
+                  flex: 1, minWidth: 110, padding: "9px 10px", borderRadius: 7, fontSize: 12.5, fontWeight: 600,
+                  border: "1px solid",
+                  background: jobStatus === s ? STATUS_COLOR[s] : "transparent",
+                  color: jobStatus === s ? "#fff" : "#9A9D9F",
+                  borderColor: jobStatus === s ? STATUS_COLOR[s] : "#3A3D42",
+                  transition: "all 0.12s",
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          {jobStatus && (
+            <div style={{ fontSize: 11.5, color: "#9A9D9F", marginTop: 6 }}>
+              Job will be set to <strong style={{ color: STATUS_COLOR[jobStatus] }}>{jobStatus}</strong> on submit.
+            </div>
+          )}
         </div>
 
         <div style={{ borderTop: "1px solid #2C2F33", paddingTop: 16, marginBottom: 14 }}>
