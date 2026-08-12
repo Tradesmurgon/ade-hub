@@ -204,7 +204,7 @@ export default function WorkshopApp() {
   const persistJobs = useCallback((next) => {
     const diff = diffAndSyncJobs(prevJobs.current, next);
     setJobs(next);
-    applySync("jobs", diff).catch(console.error);
+    return applySync("jobs", diff); // return promise so callers can catch errors
   }, []);
   const persistParts = useCallback((next) => {
     const diff = diffAndSyncParts(prevParts.current, next);
@@ -1670,7 +1670,10 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
   // Local entries — keeps submissions visible immediately, independent of Supabase round-trip
   const [localEntries, setLocalEntries] = useState([]);
 
-  const submit = () => {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const submit = async () => {
     if (!selectedJobId) { setTimeError("Select a job first."); return; }
     if (!hours || Number(hours) <= 0) { setTimeError("Enter the hours worked."); return; }
 
@@ -1686,10 +1689,10 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
       jobNumber: job?.jobNumber || "",
     };
 
-    // Add to local display state immediately — survives polling race conditions
+    setSubmitting(true); setSubmitError(""); setTimeError("");
     setLocalEntries((prev) => [entry, ...prev].slice(0, 7));
 
-    persistJobs(jobs.map((j) => {
+    const nextJobs = jobs.map((j) => {
       if (j.id !== selectedJobId) return j;
       const existingParts = [...(j.partsUsed || [])];
       partsUsed.forEach((pu) => {
@@ -1706,9 +1709,17 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
         laborHours: (Number(j.laborHours) || 0) + Number(hours),
         partsUsed: existingParts,
       };
-    }));
+    });
 
-    setHours(""); setNote(""); setPartsUsed([]); setTimeError("");
+    try {
+      await persistJobs(nextJobs);
+      setHours(""); setNote(""); setPartsUsed([]);
+    } catch (e) {
+      setSubmitError("Save failed — check your internet connection and try again.");
+      setLocalEntries((prev) => prev.filter((le) => le.id !== entry.id));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Merge local entries with entries from Supabase, deduplicate by id, keep 7 most recent
@@ -1810,12 +1821,14 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
         </div>
 
         {timeError && <div style={{ color: "#D9695A", fontSize: 12.5, marginBottom: 10 }}>{timeError}</div>}
+        {submitError && <div style={{ color: "#D9695A", fontSize: 12.5, marginBottom: 10, padding: "8px 12px", background: "rgba(169,59,46,0.12)", borderRadius: 6, border: "1px solid #A23B2E" }}>{submitError}</div>}
         <button
           className="wj-btn wj-amber"
-          style={{ width: "100%", padding: "11px 0", borderRadius: 6, fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+          style={{ width: "100%", padding: "11px 0", borderRadius: 6, fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: submitting ? 0.6 : 1 }}
           onClick={submit}
+          disabled={submitting}
         >
-          <Timer size={15} /> Submit time & materials
+          <Timer size={15} /> {submitting ? "Saving…" : "Submit time & materials"}
         </button>
       </div>
 
