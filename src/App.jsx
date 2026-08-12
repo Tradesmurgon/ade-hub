@@ -492,7 +492,8 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
   const [printJob, setPrintJob] = useState(null);
   const [showMobileInfo, setShowMobileInfo] = useState(false);
   const [openJobId, setOpenJobId] = useState(null);
-  const [detailJob, setDetailJob] = useState(null); // job detail modal from dashboard
+  const [detailJob, setDetailJob] = useState(null);
+  const [confirmCompleteJob, setConfirmCompleteJob] = useState(null); // job detail modal from dashboard
 
   const goToJob = (jobId) => {
     const job = jobs.find((j) => j.id === jobId);
@@ -536,6 +537,7 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
   const ownerTabs = [
     { key: "dashboard",           label: "Dashboard",             icon: LayoutDashboard },
     { key: "jobs",                label: "Job Cards",             icon: Wrench },
+    { key: "archive",             label: "Archive",               icon: CheckCircle2 },
     { key: "clients",             label: "Clients",               icon: Users },
     { key: "parts",               label: "Parts & Consumables",   icon: Package },
     { key: "inventory",           label: "Inventory",             icon: Package },
@@ -599,7 +601,13 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
               jobs={jobs} clients={clients} parts={parts} clientById={clientById} partById={partById}
               persistJobs={persistJobs} jobCost={jobCost} setPrintJob={setPrintJob} staffUsers={staffUsers}
               openJobId={openJobId} clearOpenJobId={() => setOpenJobId(null)}
+              onRequestComplete={(job) => setConfirmCompleteJob(job)}
             />
+          )}
+          {isOwner && tab === "archive" && (
+            <Archive jobs={jobs} clients={clients} clientById={clientById} partById={partById}
+              staffUsers={staffUsers} jobCost={jobCost} persistJobs={persistJobs}
+              onViewDetail={(job) => setDetailJob(job)} />
           )}
           {isOwner && tab === "clients" && <Clients clients={clients} jobs={jobs} persistClients={persistClients} />}
           {tab === "parts" && can("parts") && <Parts isOwner={isOwner} parts={parts} persistParts={persistParts} />}
@@ -636,6 +644,21 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
 
       {printJob && <PrintCard job={printJob} client={clientById[printJob.clientId]} partById={partById} jobCost={jobCost} onClose={() => setPrintJob(null)} showCost={isOwner} />}
       {showMobileInfo && <MobileInfoModal onClose={() => setShowMobileInfo(false)} />}
+      {confirmCompleteJob && (
+        <ConfirmCompleteModal
+          job={confirmCompleteJob}
+          client={clientById[confirmCompleteJob.clientId]}
+          cost={jobCost(confirmCompleteJob)}
+          onConfirm={() => {
+            persistJobs(jobs.map((j) => j.id === confirmCompleteJob.id
+              ? { ...j, status: "Completed", completedAt: new Date().toISOString() }
+              : j
+            ));
+            setConfirmCompleteJob(null);
+          }}
+          onCancel={() => setConfirmCompleteJob(null)}
+        />
+      )}
       {detailJob && (
         <JobDetailModal
           job={detailJob}
@@ -828,7 +851,7 @@ function Stat({ label, value, icon: Icon, accent = "#E8E6DF" }) {
 /* ============================================================
    JOBS (role-aware: staff cannot see cost figures or pricing fields)
    ============================================================ */
-function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, persistJobs, jobCost, setPrintJob, staffUsers, openJobId, clearOpenJobId }) {
+function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, persistJobs, jobCost, setPrintJob, staffUsers, openJobId, clearOpenJobId, onRequestComplete }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("All");
@@ -844,7 +867,10 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
     }
   }, [openJobId]);
 
+  const activeStatuses = STATUSES.filter((s) => s !== "Completed");
+
   const filtered = jobs.filter((j) => {
+    if (j.status === "Completed") return false; // completed jobs live in Archive
     const matchStatus = filter === "All" || j.status === filter;
     const matchSearch = !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.jobNumber.toLowerCase().includes(search.toLowerCase()) || (clientById[j.clientId]?.name || "").toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
@@ -856,8 +882,12 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
     setEditing(null);
   };
   const removeJob = (id) => { persistJobs(jobs.filter((j) => j.id !== id)); setConfirmDeleteId(null); };
-  const setStatus = (id, status) => {
-    persistJobs(jobs.map((j) => (j.id === id ? { ...j, status, completedAt: status === "Completed" ? new Date().toISOString() : j.completedAt } : j)));
+  const setStatus = (id, newStatus) => {
+    if (newStatus === "Completed" && onRequestComplete) {
+      const job = jobs.find((j) => j.id === id);
+      if (job) { onRequestComplete(job); return; }
+    }
+    persistJobs(jobs.map((j) => (j.id === id ? { ...j, status: newStatus, completedAt: newStatus === "Completed" ? new Date().toISOString() : j.completedAt } : j)));
   };
 
   return (
@@ -883,7 +913,7 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
         </div>
         <select style={{ width: 170 }} value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option>All</option>
-          {STATUSES.map((s) => <option key={s}>{s}</option>)}
+          {activeStatuses.map((s) => <option key={s}>{s}</option>)}
         </select>
       </div>
 
@@ -931,7 +961,7 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <select value={j.status} onChange={(e) => setStatus(j.id, e.target.value)}
                     style={{ fontSize: 12.5, fontWeight: 600, color: STATUS_COLOR[j.status], borderColor: STATUS_COLOR[j.status], flex: 1, minWidth: 140 }}>
-                    {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {STATUSES.map((s) => <option key={s} value={s}>{s}{s === "Completed" ? " → Archive" : ""}</option>)}
                   </select>
                   {isOwner && <div style={{ fontSize: 13, color: "#C7C5BE", fontWeight: 600 }}>{money(cost.total)}</div>}
                   <div className="ade-mobile-only" style={{ fontSize: 11.5, color: "#9A9D9F", marginLeft: "auto" }}>{dateShort(j.createdAt)}</div>
@@ -1372,6 +1402,122 @@ function PartPicker({ parts, isOwner, partsUsed, onAdd }) {
 }
 
 /* ---------------- printable job card ---------------- */
+/* ── Confirm Complete Modal ── */
+function ConfirmCompleteModal({ job, client, cost, onConfirm, onCancel }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 95, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div className="wj-card" style={{ width: "100%", maxWidth: 440, padding: 28, borderColor: "#4CAF50" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(76,175,80,0.15)", border: "1px solid #4CAF50", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CheckCircle2 size={20} color="#4CAF50" />
+          </div>
+          <div className="wj-h" style={{ fontSize: 17, fontWeight: 700 }}>Mark job as complete?</div>
+        </div>
+
+        <div style={{ background: "#15171A", borderRadius: 8, padding: "13px 15px", marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{job.jobNumber} — {job.title}</div>
+          {client && <div style={{ fontSize: 12.5, color: "#9A9D9F" }}>{client.name}</div>}
+          <div style={{ marginTop: 10, display: "flex", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#9A9D9F" }}>Labour</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{money(cost.laborCost)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#9A9D9F" }}>Materials</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{money(cost.partsCost)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#9A9D9F" }}>Total</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FF8A1E" }}>{money(cost.total)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 13, color: "#9A9D9F", marginBottom: 22, lineHeight: 1.5 }}>
+          This job will be moved to the <strong style={{ color: "#E8E6DF" }}>Archive</strong>. It can be reopened at any time from there.
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="wj-btn wj-ghost" style={{ flex: 1, padding: "11px 0", borderRadius: 6, fontSize: 14, fontWeight: 600 }} onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="wj-btn" style={{ flex: 1, padding: "11px 0", borderRadius: 6, fontSize: 14, fontWeight: 700, background: "#4CAF50", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }} onClick={onConfirm}>
+            <CheckCircle2 size={16} /> Confirm & archive
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Archive — completed jobs ── */
+function Archive({ jobs, clientById, partById, staffUsers, jobCost, persistJobs, onViewDetail }) {
+  const [search, setSearch] = useState("");
+  const completed = jobs
+    .filter((j) => j.status === "Completed" && (!search || j.title.toLowerCase().includes(search.toLowerCase()) || j.jobNumber.toLowerCase().includes(search.toLowerCase()) || (clientById[j.clientId]?.name || "").toLowerCase().includes(search.toLowerCase())))
+    .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
+
+  const reopen = (id) => {
+    persistJobs(jobs.map((j) => j.id === id ? { ...j, status: "Booked In", completedAt: null } : j));
+  };
+
+  return (
+    <div>
+      <SectionHeader title="Archive" />
+      <div style={{ fontSize: 12.5, color: "#9A9D9F", marginBottom: 18 }}>
+        Completed jobs — {completed.length} total. Click any job to view details, or reopen it to move it back to active.
+      </div>
+
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <Search size={14} style={{ position: "absolute", left: 10, top: 11, color: "#5C6065" }} />
+        <input style={{ paddingLeft: 30 }} placeholder="Search archived jobs" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
+      {completed.length === 0 ? (
+        <Empty text="No completed jobs yet." />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {completed.map((j) => {
+            const cost = jobCost(j);
+            return (
+              <div key={j.id} className="wj-card" style={{ padding: 14, cursor: "pointer", opacity: 0.85 }}
+                onClick={() => onViewDetail(j)}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.borderColor = "#4CAF50"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.85"; e.currentTarget.style.borderColor = "#2C2F33"; }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <CheckCircle2 size={13} color="#4CAF50" />
+                      <span style={{ fontSize: 11.5, color: "#9A9D9F" }}>{j.jobNumber}</span>
+                      {j.completedAt && <span style={{ fontSize: 11, color: "#5C6065" }}>Completed {dateShort(j.completedAt)}</span>}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{j.title}</div>
+                    <div style={{ fontSize: 12.5, color: "#9A9D9F" }}>{clientById[j.clientId]?.name || "No client"}</div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 16 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#FF8A1E" }}>{money(cost.total)}</div>
+                    <div style={{ fontSize: 11, color: "#5C6065" }}>
+                      {money(cost.laborCost)} labour · {money(cost.partsCost)} parts
+                    </div>
+                    <button
+                      className="wj-btn wj-ghost"
+                      style={{ marginTop: 8, padding: "5px 12px", borderRadius: 5, fontSize: 11.5, fontWeight: 600 }}
+                      onClick={(e) => { e.stopPropagation(); reopen(j.id); }}
+                    >
+                      ↩ Reopen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PrintCard({ job, client, partById, jobCost, onClose, showCost }) {
   const cost = jobCost(job);
   return (
