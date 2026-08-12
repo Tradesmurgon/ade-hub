@@ -491,9 +491,13 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
   const [tab, setTab] = useState(isOwner ? "dashboard" : (can("jobs") ? "jobs" : can("time") ? "time" : can("parts") ? "parts" : "none"));
   const [printJob, setPrintJob] = useState(null);
   const [showMobileInfo, setShowMobileInfo] = useState(false);
-  const [openJobId, setOpenJobId] = useState(null); // open a specific job from dashboard
+  const [openJobId, setOpenJobId] = useState(null);
+  const [detailJob, setDetailJob] = useState(null); // job detail modal from dashboard
 
-  const goToJob = (jobId) => { setOpenJobId(jobId); setTab("jobs"); };
+  const goToJob = (jobId) => {
+    const job = jobs.find((j) => j.id === jobId);
+    if (job) setDetailJob(job);
+  };
 
   // Company settings — global, used by Dashboard and SDS prints
   const [company, setCompany] = useState({ name: "ADE Multi Trade Services", address: "", suburb: "", phone: "", abn: "", email: "" });
@@ -627,6 +631,19 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
 
       {printJob && <PrintCard job={printJob} client={clientById[printJob.clientId]} partById={partById} jobCost={jobCost} onClose={() => setPrintJob(null)} showCost={isOwner} />}
       {showMobileInfo && <MobileInfoModal onClose={() => setShowMobileInfo(false)} />}
+      {detailJob && (
+        <JobDetailModal
+          job={detailJob}
+          client={clientById[detailJob.clientId]}
+          partById={partById}
+          staffUsers={staffUsers}
+          jobCost={jobCost}
+          isOwner={isOwner}
+          onEdit={() => { setOpenJobId(detailJob.id); setTab("jobs"); setDetailJob(null); }}
+          onPrint={() => { setPrintJob(detailJob); setDetailJob(null); }}
+          onClose={() => setDetailJob(null)}
+        />
+      )}
     </div>
   );
 }
@@ -927,6 +944,144 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
           onSave={saveJob} onClose={() => { setShowForm(false); setEditing(null); }}
         />
       )}
+    </div>
+  );
+}
+
+/* ── Job Detail Modal — shows full job info, time log, parts used ── */
+function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, onEdit, onPrint, onClose }) {
+  const cost = jobCost(job);
+  const timeEntries = [...(job.timeEntries || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const partsUsed = job.partsUsed || [];
+
+  const totalHours = timeEntries.reduce((s, e) => s + Number(e.hours || 0), 0);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 90, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div className="wj-card" style={{ width: "100%", maxWidth: 680, maxHeight: "92vh", overflow: "auto", borderRadius: "16px 16px 0 0", padding: "22px 20px 32px" }} onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#9A9D9F" }}>{job.jobNumber}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: STATUS_COLOR[job.status], color: "#fff" }}>{job.status}</span>
+              {job.priority === "Urgent" && <span style={{ fontSize: 11, fontWeight: 700, color: "#A23B2E" }}>URGENT</span>}
+            </div>
+            <div className="wj-h" style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.2 }}>{job.title}</div>
+            {client && <div style={{ fontSize: 13, color: "#9A9D9F", marginTop: 4 }}>{client.name}{client.phone ? ` · ${client.phone}` : ""}</div>}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 12 }}>
+            {isOwner && <button className="wj-btn wj-ghost" style={{ padding: "8px 12px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }} onClick={onEdit}><ChevronRight size={14} /> Edit</button>}
+            {isOwner && <button className="wj-btn wj-ghost" style={{ padding: "8px 10px", borderRadius: 6 }} onClick={onPrint}><Printer size={14} /></button>}
+            <button className="wj-btn" style={{ background: "transparent", color: "#9A9D9F", padding: "8px 10px", borderRadius: 6 }} onClick={onClose}><X size={18} /></button>
+          </div>
+        </div>
+
+        {/* Assigned staff */}
+        {(Array.isArray(job.assignedTo) ? job.assignedTo : job.assignedTo ? [job.assignedTo] : []).length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 16 }}>
+            {(Array.isArray(job.assignedTo) ? job.assignedTo : [job.assignedTo]).map((name) => (
+              <span key={name} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#2C2F33", color: "#C7C5BE", border: "1px solid #3A3D42" }}>{name}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Description */}
+        {job.description && (
+          <div style={{ background: "#15171A", borderRadius: 8, padding: "12px 14px", marginBottom: 18, fontSize: 13.5, lineHeight: 1.6, color: "#C7C5BE", whiteSpace: "pre-wrap" }}>
+            {job.description}
+          </div>
+        )}
+
+        {/* Cost summary (owner only) */}
+        {isOwner && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+            {[
+              { label: "Labour", value: money(cost.laborCost), sub: `${totalHours} hrs @ $${job.laborRate || 95}/hr` },
+              { label: "Materials", value: money(cost.partsCost), sub: `${partsUsed.length} item${partsUsed.length !== 1 ? "s" : ""}` },
+              { label: "Total", value: money(cost.total), sub: "inc. labour + materials", accent: true },
+            ].map((s) => (
+              <div key={s.label} className="wj-card" style={{ padding: "10px 12px", borderColor: s.accent ? "#FF8A1E" : "#2C2F33" }}>
+                <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>{s.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: s.accent ? "#FF8A1E" : "#E8E6DF" }}>{s.value}</div>
+                <div style={{ fontSize: 10.5, color: "#5C6065", marginTop: 2 }}>{s.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Time entries + Parts — combined */}
+        <div style={{ display: "grid", gridTemplateColumns: timeEntries.length && partsUsed.length ? "1fr 1fr" : "1fr", gap: 16 }}>
+
+          {/* Time entries */}
+          {timeEntries.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                Time logged — {totalHours} hrs total
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {timeEntries.map((e) => (
+                  <div key={e.id} style={{ background: "#15171A", borderRadius: 8, padding: "10px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: e.note ? 5 : 0 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.staffName}</div>
+                        <div style={{ fontSize: 11.5, color: "#9A9D9F" }}>{dateShort(e.date)}</div>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#FF8A1E" }}>{e.hours} hrs</div>
+                    </div>
+                    {e.note && <div style={{ fontSize: 12.5, color: "#C7C5BE", marginTop: 5, paddingTop: 5, borderTop: "1px solid #2C2F33" }}>{e.note}</div>}
+                    {(e.partsUsed || []).length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                        {e.partsUsed.map((pu, i) => {
+                          const p = partById[pu.partId];
+                          const name = p ? p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim() : "Unknown";
+                          return (
+                            <span key={i} style={{ fontSize: 11, background: "#1E2024", border: "1px solid #2C2F33", borderRadius: 5, padding: "2px 7px", color: "#9A9D9F" }}>
+                              {name} × {pu.qty} {p?.unitName || ""}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Parts used */}
+          {partsUsed.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9A9D9F", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                Materials used
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {partsUsed.map((pu, i) => {
+                  const p = partById[pu.partId];
+                  const displayName = p ? p.name.replace(/\s*\((?:box|pack|pkt|bag|tin|can|roll|tube|set|kit)\s*\d+[^)]*\)/gi, "").trim() : "Unknown part";
+                  const unitCost = p && Number(p.unitsPerBox) > 1 ? Number(p.cost) / Number(p.unitsPerBox) : p ? Number(p.cost) : 0;
+                  const lineCost = unitCost * pu.qty;
+                  return (
+                    <div key={i} style={{ background: "#15171A", borderRadius: 8, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{displayName}</div>
+                        <div style={{ fontSize: 11.5, color: "#9A9D9F" }}>× {pu.qty} {p?.unitName || "units"}</div>
+                      </div>
+                      {isOwner && <div style={{ fontSize: 13, fontWeight: 600, color: "#C7C5BE" }}>{money(lineCost)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {timeEntries.length === 0 && partsUsed.length === 0 && (
+            <div style={{ color: "#5C6065", fontSize: 13, padding: "16px 0" }}>No time or materials logged yet.</div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
