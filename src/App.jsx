@@ -518,15 +518,20 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
   const partById = useMemo(() => Object.fromEntries(parts.map((p) => [p.id, p])), [parts]);
 
   const jobCost = useCallback((job) => {
+    // Labour cost: each time entry × that staff member's rate
+    const laborCost = (job.timeEntries || []).reduce((sum, entry) => {
+      const staff = staffUsers.find((u) => u.name === entry.staffName);
+      const rate = Number(staff?.rate) || 0;
+      return sum + (Number(entry.hours) || 0) * rate;
+    }, 0);
     const partsCost = (job.partsUsed || []).reduce((sum, pu) => {
       const part = partById[pu.partId];
       if (!part) return sum;
       const unitPrice = Number(part.unitsPerBox) > 1 ? Number(part.cost) / Number(part.unitsPerBox) : Number(part.cost);
       return sum + unitPrice * pu.qty;
     }, 0);
-    const laborCost = (Number(job.laborHours) || 0) * (Number(job.laborRate) || 0);
     return { partsCost, laborCost, total: partsCost + laborCost };
-  }, [partById]);
+  }, [partById, staffUsers]);
 
   const ownerTabs = [
     { key: "dashboard",           label: "Dashboard",             icon: LayoutDashboard },
@@ -1045,7 +1050,7 @@ function JobDetailModal({ job, client, partById, staffUsers, jobCost, isOwner, o
             <div className="wj-card" style={{ padding: "11px 13px" }}>
               <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>Labour</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>{money(cost.laborCost)}</div>
-              <div style={{ fontSize: 11, color: "#5C6065", marginTop: 2 }}>{totalHours} hrs @ ${job.laborRate || 95}/hr</div>
+              <div style={{ fontSize: 11, color: "#5C6065", marginTop: 2 }}>{totalHours} hrs logged</div>
             </div>
             <div className="wj-card" style={{ padding: "11px 13px" }}>
               <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 3 }}>Materials</div>
@@ -1114,7 +1119,6 @@ function JobForm({ isOwner, session, job, clients, parts, jobs, staffUsers, onSa
     priority: "Standard",
     assignedTo: session.role === "staff" ? [session.name] : [],
     laborHours: 0,
-    laborRate: 95,
     partsUsed: [],
     timeEntries: [],
     createdAt: new Date().toISOString(),
@@ -1202,15 +1206,9 @@ function JobForm({ isOwner, session, job, clients, parts, jobs, staffUsers, onSa
       </div>
 
       {isOwner && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
-          <div>
-            <label>Labor hours</label>
-            <input type="number" step="0.25" min="0" value={form.laborHours} onChange={(e) => setForm({ ...form, laborHours: e.target.value })} />
-          </div>
-          <div>
-            <label>Labor rate ($/hr)</label>
-            <input type="number" step="1" min="0" value={form.laborRate} onChange={(e) => setForm({ ...form, laborRate: e.target.value })} />
-          </div>
+        <div style={{ marginBottom: 18 }}>
+          <label>Total hours (auto-updated from time log)</label>
+          <input type="number" step="0.25" min="0" value={form.laborHours} onChange={(e) => setForm({ ...form, laborHours: e.target.value })} style={{ maxWidth: 160 }} />
         </div>
       )}
 
@@ -1435,7 +1433,7 @@ function PrintCard({ job, client, partById, jobCost, onClose, showCost }) {
 
           {showCost ? (
             <div style={{ borderTop: "2px solid #1A1A1A", paddingTop: 10, fontSize: 13 }}>
-              <Row label={`Labor (${job.laborHours || 0} hrs @ ${money(job.laborRate)})`} value={money(cost.laborCost)} />
+              {showCost && <Row label={`Labour (${job.laborHours || 0} hrs)`} value={money(cost.laborCost)} />}
               <Row label="Parts total" value={money(cost.partsCost)} />
               <Row label="Total" value={money(cost.total)} bold big />
             </div>
@@ -3624,7 +3622,17 @@ function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
           <div key={u.id} className="wj-card" style={{ padding: 14, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             <div style={{ flex: 2, minWidth: 140 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5 }}>{u.name}{u.id === session.id && <span style={{ color: "#FF8A1E", fontSize: 11, marginLeft: 6 }}>(you)</span>}</div>
-              <div style={{ fontSize: 12, color: "#9A9D9F" }}>@{u.username}</div>
+              <div style={{ fontSize: 12, color: "#9A9D9F" }}>{u.email}</div>
+            </div>
+            <div style={{ flex: "0 0 80px" }}>
+              {Number(u.rate) > 0 ? (
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#FF8A1E" }}>${Number(u.rate).toFixed(2)}</div>
+                  <div style={{ fontSize: 10.5, color: "#5C6065" }}>per hour</div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: "#5C6065", fontStyle: "italic" }}>No rate set</div>
+              )}
             </div>
             <div style={{ flex: 2 }}>
               {u.role === "owner" ? (
@@ -3647,7 +3655,6 @@ function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
                 </div>
               )}
             </div>
-            <div style={{ flex: 1, fontSize: 12, color: "#9A9D9F", whiteSpace: "nowrap" }}>Added {dateShort(u.createdAt)}</div>
             <div style={{ display: "flex", gap: 6 }}>
               <IconBtn onClick={() => { setEditing(u); setShowForm(true); }} title="Edit / reset password"><ChevronRight size={14} /></IconBtn>
               <IconBtn onClick={() => remove(u.id)} title="Remove staff member"><Trash2 size={14} /></IconBtn>
@@ -3663,7 +3670,7 @@ function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
 function StaffForm({ user, existingUsers, onSave, onClose }) {
   const [form, setForm] = useState(user
     ? { ...user, password: "" }
-    : { name: "", email: "", password: "", role: "staff", permissions: [] }
+    : { name: "", email: "", password: "", role: "staff", permissions: [], rate: 0 }
   );
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -3685,13 +3692,20 @@ function StaffForm({ user, existingUsers, onSave, onClose }) {
       email: form.email.trim(),
       password: form.password || undefined,
       role: form.role,
+      rate: Number(form.rate) || 0,
       permissions: form.role === "owner" ? [] : form.permissions,
     });
   };
 
   return (
     <Modal onClose={onClose} title={user ? "Edit staff login" : "New staff login"}>
-      <div style={{ marginBottom: 14 }}><label>Name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div><label>Name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+        <div>
+          <label>Hourly rate ($/hr)</label>
+          <input type="number" min="0" step="0.50" value={form.rate || ""} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="e.g. 95" />
+        </div>
+      </div>
       {!user && <div style={{ marginBottom: 14 }}><label>Email address</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="staff@example.com" /></div>}
       {user && <div style={{ marginBottom: 4, fontSize: 12, color: "#9A9D9F" }}>Email: {user.email}</div>}
       <div style={{ marginBottom: 18 }}>
