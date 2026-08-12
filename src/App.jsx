@@ -962,7 +962,7 @@ function Jobs({ isOwner, session, jobs, clients, parts, clientById, partById, pe
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <select value={j.status} onChange={(e) => setStatus(j.id, e.target.value)}
                     style={{ fontSize: 12.5, fontWeight: 600, color: STATUS_COLOR[j.status], borderColor: STATUS_COLOR[j.status], flex: 1, minWidth: 140 }}>
-                    {STATUSES.map((s) => <option key={s} value={s}>{s}{s === "Completed" ? " → Archive" : ""}</option>)}
+                    {(isOwner ? STATUSES : ["In Progress", "Awaiting Parts", "Ready for Pickup"]).map((s) => <option key={s} value={s}>{s}{s === "Completed" ? " → Archive" : ""}</option>)}
                   </select>
                   {isOwner && <div style={{ fontSize: 13, color: "#C7C5BE", fontWeight: 600 }}>{money(cost.total)}</div>}
                   <div className="ade-mobile-only" style={{ fontSize: 11.5, color: "#9A9D9F", marginLeft: "auto" }}>{dateShort(j.createdAt)}</div>
@@ -1195,7 +1195,7 @@ function JobForm({ isOwner, session, job, clients, parts, jobs, staffUsers, onSa
         <div>
           <label>Status</label>
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            {(isOwner ? STATUSES : ["In Progress", "Awaiting Parts", "Ready for Pickup"]).map((s) => <option key={s}>{s}</option>)}
           </select>
         </div>
         <div>
