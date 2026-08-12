@@ -2119,21 +2119,15 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
       <div className="wj-card" style={{ padding: 18, marginBottom: 22 }}>
 
         <div style={{ marginBottom: 14 }}>
-          <label>Job</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)} style={{ flex: 1 }}>
-              {openJobs.length === 0 && <option value="">No open jobs</option>}
-              {openJobs.map((j) => <option key={j.id} value={j.id}>{j.jobNumber} — {j.title}</option>)}
-            </select>
-            {(() => {
-              const job = openJobs.find((j) => j.id === selectedJobId);
-              if (!job) return null;
-              const isUrgent = job.priority === "Urgent";
-              const isHold = job.priority === "Hold";
-              if (!isUrgent && !isHold) return null;
-              return (
+          {/* Priority badge sits above the job selector when relevant */}
+          {(() => {
+            const job = openJobs.find((j) => j.id === selectedJobId);
+            if (!job || job.priority === "Standard") return null;
+            const isUrgent = job.priority === "Urgent";
+            return (
+              <div style={{ marginBottom: 6 }}>
                 <span style={{
-                  flexShrink: 0, fontSize: 11.5, fontWeight: 800, padding: "5px 11px", borderRadius: 20,
+                  fontSize: 11.5, fontWeight: 800, padding: "4px 12px", borderRadius: 20,
                   background: isUrgent ? "rgba(162,59,46,0.15)" : "rgba(92,107,122,0.15)",
                   color: isUrgent ? "#D9695A" : "#9A9D9F",
                   border: `1px solid ${isUrgent ? "#A23B2E" : "#3A3D42"}`,
@@ -2141,9 +2135,14 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
                 }}>
                   {isUrgent ? "⚡ Urgent" : "⏸ Hold"}
                 </span>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
+          <label>Job</label>
+          <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)}>
+            {openJobs.length === 0 && <option value="">No open jobs</option>}
+            {openJobs.map((j) => <option key={j.id} value={j.id}>{j.jobNumber} — {j.title}</option>)}
+          </select>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, marginBottom: 14 }}>
