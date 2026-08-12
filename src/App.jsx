@@ -113,13 +113,14 @@ const PERMISSIONS = [
   { key: "sds",                 label: "SDS Library",             desc: "View, print and download Safety Data Sheets" },
 ];
 
-const STATUSES = ["Booked In", "In Progress", "Awaiting Parts", "Ready for Pickup", "Completed"];
+const STATUSES = ["Booked In", "In Progress", "Awaiting Parts", "Ready for Pickup", "Invoice", "Completed"];
 const STATUS_COLOR = {
-  "Booked In": "#5C6B7A",
-  "In Progress": "#C9760C",
-  "Awaiting Parts": "#A23B2E",
-  "Ready for Pickup": "#1E6E4E",
-  "Completed": "#2C2F33",
+  "Booked In":       "#5C6B7A",
+  "In Progress":     "#C9760C",
+  "Awaiting Parts":  "#A23B2E",
+  "Ready for Pickup":"#1E6E4E",
+  "Invoice":         "#6B3FA0",
+  "Completed":       "#2C2F33",
 };
 const PRIORITIES = ["Standard", "Urgent", "Hold"];
 
