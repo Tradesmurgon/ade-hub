@@ -588,7 +588,7 @@ function MainApp({ session, onLogout, clients, parts, jobs, staffUsers, persistC
       <div style={{ display: "flex" }}>
 
         {/* Desktop sidebar — hidden on mobile via CSS */}
-        <div className="ade-sidebar" style={{ width: 188, borderRight: "1px solid #2C2F33", padding: "16px 10px", flexShrink: 0, minHeight: "calc(100vh - 57px)", background: "#15171A" }}>
+        <div className="ade-sidebar" style={{ width: 188, borderRight: "1px solid #2C2F33", padding: "16px 10px", flexShrink: 0, background: "#15171A", position: "sticky", top: 57, height: "calc(100vh - 57px)", overflowY: "auto", alignSelf: "flex-start" }}>
           {navTabs.map((t) => <NavItem key={t.key} icon={t.icon} label={t.label} active={tab === t.key} onClick={() => setTab(t.key)} />)}
         </div>
 
