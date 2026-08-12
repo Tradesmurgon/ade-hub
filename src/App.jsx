@@ -3559,6 +3559,87 @@ function HeatGrid({ label, days, staffNames, getHours, heatColor, fmtDay, isToda
 /* ============================================================
    STAFF ACCESS (owner only) — create/manage staff logins
    ============================================================ */
+function StaffCard({ u, session, onEdit, onRemove, onRateChange }) {
+  const [rateVal, setRateVal] = useState(String(Number(u.rate) || ""));
+  const [saving, setSaving] = useState(false);
+
+  const saveRate = async () => {
+    const n = Number(rateVal);
+    if (isNaN(n) || n < 0) return;
+    setSaving(true);
+    await onRateChange(n);
+    setSaving(false);
+  };
+
+  return (
+    <div className="wj-card" style={{ padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+        {/* Name + email */}
+        <div style={{ flex: "2 1 160px", minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>
+            {u.name}
+            {u.id === session.id && <span style={{ color: "#FF8A1E", fontSize: 11, marginLeft: 6, fontWeight: 600 }}>(you)</span>}
+          </div>
+          <div style={{ fontSize: 12, color: "#9A9D9F", marginTop: 2 }}>{u.email}</div>
+        </div>
+
+        {/* Hourly rate — inline editable */}
+        <div style={{ flex: "0 0 160px" }}>
+          <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Hourly rate</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9A9D9F", fontSize: 13 }}>$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.50"
+                value={rateVal}
+                onChange={(e) => setRateVal(e.target.value)}
+                onBlur={saveRate}
+                onKeyDown={(e) => e.key === "Enter" && saveRate()}
+                placeholder="0.00"
+                style={{ paddingLeft: 22, width: "100%", fontSize: 13 }}
+              />
+            </div>
+            <span style={{ fontSize: 11.5, color: "#5C6065", whiteSpace: "nowrap" }}>/hr</span>
+            {saving && <span style={{ fontSize: 11, color: "#FF8A1E" }}>✓</span>}
+          </div>
+        </div>
+
+        {/* Permissions */}
+        <div style={{ flex: "3 1 180px" }}>
+          <div style={{ fontSize: 11, color: "#9A9D9F", marginBottom: 5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Access</div>
+          {u.role === "owner" ? (
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: "#FF8A1E", color: "#1A1300" }}>
+              Owner — full access
+            </span>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {(u.permissions || []).length === 0
+                ? <span style={{ fontSize: 11, color: "#5C6065", fontStyle: "italic" }}>No access assigned</span>
+                : (u.permissions || []).map((key) => {
+                    const perm = PERMISSIONS.find((p) => p.key === key);
+                    return perm ? (
+                      <span key={key} style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#2C2F33", color: "#C7C5BE", border: "1px solid #3A3D42" }}>
+                        {perm.label}
+                      </span>
+                    ) : null;
+                  })
+              }
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          <IconBtn onClick={onEdit} title="Edit login / reset password"><ChevronRight size={14} /></IconBtn>
+          {u.id !== session.id && <IconBtn onClick={onRemove} title="Remove staff member"><Trash2 size={14} /></IconBtn>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -3619,47 +3700,11 @@ function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
       {staffError && <div style={{ color: "#D9695A", fontSize: 12.5, marginBottom: 14 }}>{staffError}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {staffUsers.map((u) => (
-          <div key={u.id} className="wj-card" style={{ padding: 14, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ flex: 2, minWidth: 140 }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{u.name}{u.id === session.id && <span style={{ color: "#FF8A1E", fontSize: 11, marginLeft: 6 }}>(you)</span>}</div>
-              <div style={{ fontSize: 12, color: "#9A9D9F" }}>{u.email}</div>
-            </div>
-            <div style={{ flex: "0 0 80px" }}>
-              {Number(u.rate) > 0 ? (
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#FF8A1E" }}>${Number(u.rate).toFixed(2)}</div>
-                  <div style={{ fontSize: 10.5, color: "#5C6065" }}>per hour</div>
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: "#5C6065", fontStyle: "italic" }}>No rate set</div>
-              )}
-            </div>
-            <div style={{ flex: 2 }}>
-              {u.role === "owner" ? (
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: "#FF8A1E", color: "#1A1300", textTransform: "uppercase" }}>
-                  Owner / full access
-                </span>
-              ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {(u.permissions || []).length === 0
-                    ? <span style={{ fontSize: 11, color: "#5C6065", fontStyle: "italic" }}>No access assigned</span>
-                    : (u.permissions || []).map((key) => {
-                        const perm = PERMISSIONS.find((p) => p.key === key);
-                        return perm ? (
-                          <span key={key} style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#2C2F33", color: "#C7C5BE", border: "1px solid #3A3D42" }}>
-                            {perm.label}
-                          </span>
-                        ) : null;
-                      })
-                  }
-                </div>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <IconBtn onClick={() => { setEditing(u); setShowForm(true); }} title="Edit / reset password"><ChevronRight size={14} /></IconBtn>
-              <IconBtn onClick={() => remove(u.id)} title="Remove staff member"><Trash2 size={14} /></IconBtn>
-            </div>
-          </div>
+          <StaffCard key={u.id} u={u} session={session} onEdit={() => { setEditing(u); setShowForm(true); }} onRemove={() => remove(u.id)} onRateChange={async (newRate) => {
+            const result = await apiCall("PUT", { id: u.id, name: u.name, role: u.role, permissions: u.permissions, rate: newRate });
+            if (!result.error) persistStaff(staffUsers.map((s) => s.id === u.id ? { ...s, rate: newRate } : s));
+            else setStaffError(result.error);
+          }} />
         ))}
       </div>
       {showForm && <StaffForm user={editing} existingUsers={staffUsers} onSave={save} onClose={() => { setShowForm(false); setEditing(null); }} />}
@@ -3670,7 +3715,7 @@ function StaffAccess({ staffUsers, persistStaff, session, jobs, persistJobs }) {
 function StaffForm({ user, existingUsers, onSave, onClose }) {
   const [form, setForm] = useState(user
     ? { ...user, password: "" }
-    : { name: "", email: "", password: "", role: "staff", permissions: [], rate: 0 }
+    : { name: "", email: "", password: "", role: "staff", permissions: [] }
   );
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -3692,20 +3737,13 @@ function StaffForm({ user, existingUsers, onSave, onClose }) {
       email: form.email.trim(),
       password: form.password || undefined,
       role: form.role,
-      rate: Number(form.rate) || 0,
       permissions: form.role === "owner" ? [] : form.permissions,
     });
   };
 
   return (
     <Modal onClose={onClose} title={user ? "Edit staff login" : "New staff login"}>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
-        <div><label>Name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-        <div>
-          <label>Hourly rate ($/hr)</label>
-          <input type="number" min="0" step="0.50" value={form.rate || ""} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="e.g. 95" />
-        </div>
-      </div>
+      <div style={{ marginBottom: 14 }}><label>Name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
       {!user && <div style={{ marginBottom: 14 }}><label>Email address</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="staff@example.com" /></div>}
       {user && <div style={{ marginBottom: 4, fontSize: 12, color: "#9A9D9F" }}>Email: {user.email}</div>}
       <div style={{ marginBottom: 18 }}>
