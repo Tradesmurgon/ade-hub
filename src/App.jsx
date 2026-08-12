@@ -2120,10 +2120,30 @@ function TimeLog({ jobs, parts, clientById, persistJobs, session }) {
 
         <div style={{ marginBottom: 14 }}>
           <label>Job</label>
-          <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)}>
-            {openJobs.length === 0 && <option value="">No open jobs</option>}
-            {openJobs.map((j) => <option key={j.id} value={j.id}>{j.jobNumber} — {j.title}</option>)}
-          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)} style={{ flex: 1 }}>
+              {openJobs.length === 0 && <option value="">No open jobs</option>}
+              {openJobs.map((j) => <option key={j.id} value={j.id}>{j.jobNumber} — {j.title}</option>)}
+            </select>
+            {(() => {
+              const job = openJobs.find((j) => j.id === selectedJobId);
+              if (!job) return null;
+              const isUrgent = job.priority === "Urgent";
+              const isHold = job.priority === "Hold";
+              if (!isUrgent && !isHold) return null;
+              return (
+                <span style={{
+                  flexShrink: 0, fontSize: 11.5, fontWeight: 800, padding: "5px 11px", borderRadius: 20,
+                  background: isUrgent ? "rgba(162,59,46,0.15)" : "rgba(92,107,122,0.15)",
+                  color: isUrgent ? "#D9695A" : "#9A9D9F",
+                  border: `1px solid ${isUrgent ? "#A23B2E" : "#3A3D42"}`,
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                }}>
+                  {isUrgent ? "⚡ Urgent" : "⏸ Hold"}
+                </span>
+              );
+            })()}
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, marginBottom: 14 }}>
